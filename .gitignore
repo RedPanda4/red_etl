@@ -1,0 +1,29 @@
+# Archived brainstorming and historical documents.
+archive/*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+build/
+dist/

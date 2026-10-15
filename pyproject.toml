@@ -1,0 +1,16 @@
+[project]
+name = "red-etl"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = ["ibis-framework>=12.0"]
+
+[project.optional-dependencies]
+pandas = ["pandas>=2.0"]
+polars = ["polars>=1.0"]
+duckdb = ["duckdb>=1.0"]
+sql = ["pandas>=2.0", "sqlalchemy>=2.0"]
+excel = ["pandas>=2.0", "openpyxl>=3.0"]
+all = ["pandas>=2.0", "polars>=1.0", "duckdb>=1.0", "sqlalchemy>=2.0", "openpyxl>=3.0"]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "pandas>=2.0", "polars>=1.0", "duckdb>=1.0", "sqlalchemy>=2.0", "openpyxl>=3.0"]
