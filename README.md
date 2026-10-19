@@ -111,8 +111,7 @@ print(result.execute()["full_name"].tolist())
 | `ExplodeList` | Extract list/array elements into named columns. |
 | `ExplodeDict` | Extract dictionary values into named columns. |
 
-See [`PROJECT.md`](PROJECT.md) for the full specification and [`docs/`](docs/) for
-additional guides.
+See [`docs/README.md`](docs/README.md) for the full user guide, [`docs/extending/`](docs/extending/README.md) for contributor guides, and [`PROJECT.md`](PROJECT.md) for the living specification.
 
 ## Backends
 
@@ -147,13 +146,27 @@ pytest tests/
 PYTHONPATH=. python examples/explode_usage.py
 ```
 
-## Project status
+## Documentation
 
-MVP / proof-of-concept. Core transforms, Pandas and Polars backends, and the I/O
-abstraction are implemented. A `Pipeline` class that wires Source → transforms → Sink
-and Pandera validation hooks are on the roadmap.
+| Document | What it covers |
+|----------|----------------|
+| [`docs/quickstart.md`](docs/quickstart.md) | Installation and your first transformation. |
+| [`docs/schemas.md`](docs/schemas.md) | Declaring schemas with `RedMeta` and `Column`. |
+| [`docs/transforms.md`](docs/transforms.md) | Catalog of built-in transforms. |
+| [`docs/explode-transforms.md`](docs/explode-transforms.md) | Working with `ExplodeList` and `ExplodeDict`. |
+| [`docs/backends.md`](docs/backends.md) | Supported execution engines. |
+| [`docs/io.md`](docs/io.md) | Sources and sinks for CSV, Parquet, SQL, and Excel. |
+| [`docs/validation.md`](docs/validation.md) | Schema and value validation. |
+| [`docs/pipelines.md`](docs/pipelines.md) | Bronze → Silver → Gold pipeline concepts. |
+| [`docs/extending/`](docs/extending/README.md) | Guides for adding transforms, backends, validators, and I/O adapters. |
 
 See [`PROJECT.md`](PROJECT.md) for the living specification.
+
+## Project status
+
+MVP / proof-of-concept. Core transforms, Pandas and Polars backends, the I/O
+abstraction, and Pandera validation are implemented. A `Pipeline` class that wires
+Source → transforms → Sink is on the roadmap.
 
 ## License
 
