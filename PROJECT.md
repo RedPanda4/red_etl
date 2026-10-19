@@ -2,7 +2,7 @@
 
 > **Package name:** `red-etl`  
 > **Status:** MVP / proof-of-concept  
-> **Last updated:** 2026-10-15
+> **Last updated:** 2026-10-19
 
 ---
 
@@ -28,25 +28,50 @@ The primary goal is **data cleaning**: read raw data, apply typed transformation
 
 ```
 red_etl/
-    __init__.py
+    __init__.py            # Public core API
     column.py              # Column descriptor
     meta.py                # RedMeta base class
     transforms.py          # Transform base + concrete transforms
     pipeline.py            # apply_transforms and execution logic
-    backends/
+    backends/              # Optional execution engines
         __init__.py
         base.py            # Backend abstract base + native override registry
         pandas.py          # PandasBackend (requires pandas)
         polars.py          # PolarsBackend (requires polars)
         duckdb.py          # (planned) DuckDBBackend
         spark.py           # (planned) SparkBackend
+    io/                    # Optional I/O adapters (sources/sinks)
+        __init__.py
+        base.py            # Source, Sink abstract bases
+        csv.py             # CSVSource, CSVSink
+        parquet.py         # ParquetSource, ParquetSink
+        sql.py             # SQLSource, SQLSink
+        excel.py           # ExcelSource, ExcelSink (requires openpyxl)
+    validation/            # Optional validation adapters
+        __init__.py
+        base.py            # Validator abstract base + validate_schema
+        pandera/           # Pandera validators
+            __init__.py    # Registry + factory (register_validator, get_validator)
+            base.py        # BasePanderaValidator
+            pandas.py      # PandasPanderaValidator
+            polars.py      # PolarsPanderaValidator
+            ibis_validator.py  # IbisPanderaValidator
+            spark.py       # SparkPanderaValidator (placeholder)
 tests/
     test_column.py
     test_meta.py
     test_transforms.py
     test_pipeline.py
     test_backends.py
+    test_io.py
+    test_validation.py
 ```
+
+The core package (`red_etl`) contains only schemas, transforms and the
+execution pipeline. Everything that brings an external dependency or a
+separate concern — engines, file formats, databases, validation libraries —
+lives in an optional addon module (`backends`, `io`, `validation`).
+Addons import the core, but the core never imports an addon.
 
 Historical brainstorming documents are kept in `archive/` (gitignored).
 
@@ -268,23 +293,78 @@ Gold
 
 ---
 
-## 9. Validation
+## 10. Validation
 
-Pandera integration is planned but not yet implemented. The design is:
+Validation is an **optional addon**, not part of the core framework. It lives
+in `red_etl.validation` and is imported only when needed, following the same
+addon pattern as `red_etl.io`.
 
-- Each `RedMeta` class can generate a Pandera `DataFrameSchema`.
-- Validation checkpoints can be attached to pipeline steps (input, intermediate, output).
+There are two layers:
+
+1. **Schema validation** (`validate_schema`) — lightweight check of column
+   names and types against an Ibis ``Table`` expression. It never executes the
+   table or pulls rows into memory, so it is safe for large datasets on any
+   backend.
+
+   ```python
+   from red_etl.validation import validate_schema
+
+   validate_schema(table, User)
+   ```
+
+2. **Full value validation** (`validate`) — backend-aware Pandera validation.
+   When a :class:`Backend` is supplied, the validator uses the Pandera module
+   that matches the backend's native format (``pandera.pandas``,
+   ``pandera.polars``, ...). This avoids converting a Spark or Polars dataset
+   to Pandas just for validation.
+
+   ```python
+   from red_etl.validation import validate
+   from red_etl.backends.polars import PolarsBackend
+
+   validate(df, User, backend=PolarsBackend())
+   ```
+
+Implemented design:
+
+- `red_etl.validation.base.Validator` is an abstract base.
+- `red_etl.validation.base.validate_schema()` performs a lightweight,
+  execution-free check of column names and types on an Ibis ``Table``.
+- `red_etl.validation.base` exposes a generic validator registry:
+  - `register_validator(name, validator_cls)` accepts any ``Validator``
+    subclass, not just Pandera-based ones.
+  - `get_validator(backend)` returns the registered validator instance.
+- `red_etl.validation.pandera` provides the package-default validators
+  (`PandasPanderaValidator`, `PolarsPanderaValidator`, ...) and registers
+  them for their respective backends. Users can override these defaults or
+  register non-Pandera validators through the same registry.
+- `red_etl.validation.pandera.base.BasePanderaValidator` is a generic base for
+  Pandera validators. Concrete subclasses live in backend-specific modules
+  (`pandas.py`, `polars.py`, `ibis_validator.py`, `spark.py`).
+- The core `RedMeta` and `Column` classes do not depend on validation. The
+  addon reads the schema through the existing introspection API
+  (`columns()`, `dtype`, `nullable`, `primary_key`).
+- For now validation is **strict**: the input must contain exactly the
+  columns declared on the schema, with matching names and types. Handling of
+  missing or extra columns is left as a future improvement.
+- If a backend does not have a registered validator, `get_validator()` raises
+  `NotImplementedError` with a clear message. The caller can fall back to
+  `validate_schema()` for a memory-safe schema check.
+- Validation checkpoints can be attached to pipeline steps (input,
+  intermediate, output) once the `Pipeline` class is implemented.
 - Validation is optional and configurable per step.
+
+No core changes were required to support validation as an addon.
 
 ---
 
-## 10. Metadata Persistence
+## 11. Metadata Persistence
 
 `red_elt_save` (planned) will persist metadata definitions to SQL or files so that schemas can be loaded at runtime instead of only living in code. It is an optional, isolated module.
 
 ---
 
-## 11. Developer Rules
+## 12. Developer Rules
 
 1. **Docstrings are mandatory** for every module, class, method and function.
 2. **Unit tests are mandatory** for every source file and public function/method.
@@ -301,9 +381,11 @@ Pandera integration is planned but not yet implemented. The design is:
 3. Add `DuckDBBackend` for fast local analytical execution.
 4. ~~Add source/sink abstraction~~ (done for local files; add S3 path support).
 5. Add a `Pipeline` class that wires Source → transforms → Sink.
-6. Add Pandera schema generation and validation hooks.
-7. Add `red_elt_save` metadata persistence module.
-8. Add `SparkBackend` for large-scale pipelines.
+6. ~~Add `red_etl.validation` addon with Pandera schema generation and validation checkpoints~~ (basic implementation done).
+7. Make validation column-matching configurable (allow missing/extra columns).
+8. Make validation per column
+9. Add `red_elt_save` metadata persistence module.
+10. Add `SparkBackend` for large-scale pipelines.
 
 ---
 
